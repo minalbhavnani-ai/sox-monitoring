@@ -80,7 +80,7 @@
     /* ── Summary cards ── */
     .summary-grid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 16px;
       margin-bottom: 28px;
     }
@@ -94,8 +94,6 @@
     .card-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; }
     .card-value { font-size: 32px; font-weight: 700; line-height: 1; }
     .card-sub { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
-    .card.red { border-left: 4px solid var(--red); }
-    .card.red .card-value { color: var(--red); }
     .card.yellow { border-left: 4px solid var(--yellow); }
     .card.yellow .card-value { color: var(--yellow); }
     .card.green { border-left: 4px solid var(--green); }
@@ -183,11 +181,9 @@
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: var(--gray-light); }
 
-    /* Row coloring based on status */
-    tr.row-critical td { background: var(--red-light); }
-    tr.row-critical:hover td { background: #ffe8e8; }
-    tr.row-warn td { background: var(--yellow-light); }
-    tr.row-warn:hover td { background: #fefcbf; }
+    /* Row coloring */
+    tr.row-test td { background: var(--yellow-light); }
+    tr.row-test:hover td { background: #fefcbf; }
     tr.row-ok td { background: var(--green-light); }
     tr.row-ok:hover td { background: #e6ffed; }
 
@@ -214,6 +210,23 @@
       color: var(--gray);
       border: 1px solid var(--gray-border);
     }
+    .change-type-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .change-type-tag.substantive {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffc107;
+    }
+    .change-type-tag.minor {
+      background: var(--gray-light);
+      color: var(--gray);
+      border: 1px solid var(--gray-border);
+    }
 
     /* Status badges */
     .badge {
@@ -227,8 +240,6 @@
       white-space: nowrap;
     }
     .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-    .badge-red { background: var(--red-light); color: var(--red); border: 1px solid var(--red-border); }
-    .badge-red::before { background: var(--red); }
     .badge-yellow { background: var(--yellow-light); color: var(--yellow); border: 1px solid var(--yellow-border); }
     .badge-yellow::before { background: var(--yellow); }
     .badge-green { background: var(--green-light); color: var(--green); border: 1px solid var(--green-border); }
@@ -238,6 +249,8 @@
 
     .date-cell { font-size: 13px; white-space: nowrap; }
     .date-cell .by { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    .change-desc { font-size: 12px; color: var(--text-muted); max-width: 220px; }
 
     .action-link {
       font-size: 12px;
@@ -278,11 +291,10 @@
 
     /* ── Responsive ── */
     @media (max-width: 1100px) {
-      .summary-grid { grid-template-columns: repeat(3, 1fr); }
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
     }
     @media (max-width: 768px) {
       main { padding: 16px; }
-      .summary-grid { grid-template-columns: repeat(2, 1fr); }
       header { padding: 0 16px; }
     }
   </style>
@@ -306,36 +318,31 @@
 
 <main>
 
-  <div class="notice" id="pendingNotice">
+  <div class="notice" id="pendingNotice" style="display:none">
     <span class="notice-icon">⚠️</span>
-    <span><strong>Audit scan pending.</strong> Audit trail data has not been collected yet. Run the Chrome automation scan to populate modification dates. See the README for instructions.</span>
+    <span><strong>Audit scan pending.</strong> Audit trail data has not been collected yet. Run the Chrome automation scan to populate modification dates.</span>
   </div>
 
   <!-- Summary Cards -->
   <div class="summary-grid">
     <div class="card blue">
       <div class="card-label">Total Monitored</div>
-      <div class="card-value" id="statTotal">14</div>
+      <div class="card-value" id="statTotal">—</div>
       <div class="card-sub">Reports &amp; Saved Searches</div>
-    </div>
-    <div class="card red">
-      <div class="card-label">Test Now — Recent</div>
-      <div class="card-value" id="statCritical">—</div>
-      <div class="card-sub">Modified in last 30 days</div>
     </div>
     <div class="card yellow">
       <div class="card-label">Test Required</div>
-      <div class="card-value" id="statWarn">—</div>
-      <div class="card-sub">Modified this year</div>
+      <div class="card-value" id="statTest">—</div>
+      <div class="card-sub">Substantive change in audit window</div>
     </div>
     <div class="card green">
       <div class="card-label">No Testing Needed</div>
       <div class="card-value" id="statOk">—</div>
-      <div class="card-sub">No changes this year</div>
+      <div class="card-sub">Minor changes or no changes</div>
     </div>
     <div class="card gray">
       <div class="card-label">Pending Scan</div>
-      <div class="card-value" id="statPending">14</div>
+      <div class="card-value" id="statPending">—</div>
       <div class="card-sub">Awaiting audit trail pull</div>
     </div>
   </div>
@@ -343,16 +350,15 @@
   <!-- Toolbar -->
   <div class="toolbar">
     <span class="toolbar-label">Filter:</span>
-    <button class="filter-btn active" onclick="filterTable('all')">All (14)</button>
+    <button class="filter-btn active" onclick="filterTable('all')">All</button>
     <button class="filter-btn" onclick="filterTable('SEC Reports')">SEC Reports</button>
     <button class="filter-btn" onclick="filterTable('AR / AP')">AR / AP</button>
     <button class="filter-btn" onclick="filterTable('Revenue Recognition')">Revenue Recognition</button>
     <button class="filter-btn" onclick="filterTable('Sales / Bookings')">Sales / Bookings</button>
     <button class="filter-btn" onclick="filterTable('Saved Searches')">Saved Searches</button>
     <div class="toolbar-sep"></div>
-    <button class="filter-btn" onclick="filterTable('critical')">🔴 Test Now</button>
-    <button class="filter-btn" onclick="filterTable('warn')">🟡 Test Required</button>
-    <button class="filter-btn" onclick="filterTable('ok')">🟢 Clear</button>
+    <button class="filter-btn" onclick="filterTable('test')">🟡 Test Required</button>
+    <button class="filter-btn" onclick="filterTable('ok')">🟢 No Testing Needed</button>
     <div class="toolbar-spacer"></div>
     <button class="export-btn" onclick="exportCSV()">↓ Export CSV</button>
   </div>
@@ -366,8 +372,8 @@
           <th onclick="sortTable('category')">Category</th>
           <th onclick="sortTable('type')">Type</th>
           <th onclick="sortTable('lastModifiedDate')">Last Modified</th>
-          <th onclick="sortTable('modifiedThisYear')">Modified This Year</th>
-          <th onclick="sortTable('modifiedLast30Days')">Last 30 Days</th>
+          <th onclick="sortTable('changeType')">Change Type</th>
+          <th onclick="sortTable('changeDescription')">What Changed</th>
           <th onclick="sortTable('testingRequired')">Testing Required</th>
           <th>Actions</th>
         </tr>
@@ -382,7 +388,8 @@
 
 <footer>
   SOX Continuous Monitoring Platform &nbsp;·&nbsp; Amplitude &nbsp;·&nbsp;
-  Monitoring Period: <span id="monPeriod">2026-01-01 – present</span> &nbsp;·&nbsp;
+  Audit Window: <span id="monPeriod">2025-01-01 – present</span> &nbsp;·&nbsp;
+  Minor changes (no test): Search/Report Options, Sort By, Audience, Layout &nbsp;·&nbsp;
   <a href="https://github.com/minalbhavnani-ai/sox-monitoring" style="color: inherit;">View on GitHub</a>
 </footer>
 
@@ -400,6 +407,7 @@
       allReports = data.reports;
       updateHeader(data.meta);
       updateSummary();
+      updateFilterCounts();
       renderTable();
     } catch (e) {
       console.error('Failed to load data.json', e);
@@ -412,55 +420,66 @@
     const notice = document.getElementById('pendingNotice');
 
     if (meta.lastRun) {
-      const d = new Date(meta.lastRun);
+      const d = new Date(meta.lastRun + 'T12:00:00');
       const age = (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24);
       text.textContent = 'Last scanned: ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       dot.classList.toggle('fresh', age < 7);
-      notice.style.display = 'none';
+    } else {
+      notice.style.display = 'flex';
+    }
+
+    if (meta.monitoringPeriodStart) {
+      const end = meta.monitoringPeriodEnd || 'present';
+      document.getElementById('monPeriod').textContent = meta.monitoringPeriodStart + ' – ' + end;
     }
   }
 
   // ── Summary counts ─────────────────────────────────────────────────────────
   function updateSummary() {
-    let critical = 0, warn = 0, ok = 0, pending = 0;
+    let test = 0, ok = 0, pending = 0;
     for (const r of allReports) {
-      if (r.lastModifiedDate === null) { pending++; continue; }
-      if (r.modifiedLast30Days) critical++;
-      else if (r.modifiedThisYear) warn++;
+      if (r.lastModifiedDate === null || r.lastModifiedDate === undefined) { pending++; continue; }
+      if (r.testingRequired) test++;
       else ok++;
     }
-    document.getElementById('statCritical').textContent = critical || '—';
-    document.getElementById('statWarn').textContent = warn || '—';
-    document.getElementById('statOk').textContent = ok || '—';
-    document.getElementById('statPending').textContent = pending;
+    document.getElementById('statTotal').textContent = allReports.length;
+    document.getElementById('statTest').textContent = test;
+    document.getElementById('statOk').textContent = ok;
+    document.getElementById('statPending').textContent = pending || '—';
+  }
+
+  // ── Update filter button counts ────────────────────────────────────────────
+  function updateFilterCounts() {
+    const total = allReports.length;
+    const testCount = allReports.filter(r => rowStatus(r) === 'test').length;
+    const okCount   = allReports.filter(r => rowStatus(r) === 'ok').length;
+
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      const fn = b.getAttribute('onclick') || '';
+      if (fn.includes("'all'"))  b.textContent = `All (${total})`;
+      if (fn.includes("'test'")) b.textContent = `🟡 Test Required (${testCount})`;
+      if (fn.includes("'ok'"))   b.textContent = `🟢 No Testing Needed (${okCount})`;
+    });
   }
 
   // ── Row status logic ───────────────────────────────────────────────────────
   function rowStatus(r) {
-    if (r.lastModifiedDate === null) return 'pending';
-    if (r.modifiedLast30Days) return 'critical';
-    if (r.modifiedThisYear) return 'warn';
+    if (r.lastModifiedDate === null || r.lastModifiedDate === undefined) return 'pending';
+    if (r.testingRequired) return 'test';
     return 'ok';
   }
 
   function testingBadge(r) {
     const s = rowStatus(r);
     if (s === 'pending') return '<span class="badge badge-gray">Pending scan</span>';
-    if (s === 'critical') return '<span class="badge badge-red">Test Now</span>';
-    if (s === 'warn')     return '<span class="badge badge-yellow">Test Required</span>';
-    return '<span class="badge badge-green">Not required</span>';
+    if (s === 'test')    return '<span class="badge badge-yellow">Test Required</span>';
+    return '<span class="badge badge-green">Not Required</span>';
   }
 
-  function yesNoBadge(val) {
-    if (val === null) return '<span class="pending-cell">—</span>';
-    if (val === true)  return '<span class="badge badge-yellow">Yes</span>';
-    return '<span class="badge badge-green">No</span>';
-  }
-
-  function last30Badge(val) {
-    if (val === null) return '<span class="pending-cell">—</span>';
-    if (val === true)  return '<span class="badge badge-red">Yes</span>';
-    return '<span class="badge badge-green">No</span>';
+  function changeTypeBadge(r) {
+    if (!r.changeType) return '<span class="pending-cell">—</span>';
+    const label = r.changeType === 'substantive' ? 'Substantive' : 'Minor';
+    return `<span class="change-type-tag ${r.changeType}">${label}</span>`;
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -470,7 +489,7 @@
 
     // Filter
     if (currentFilter !== 'all') {
-      if (['critical','warn','ok','pending'].includes(currentFilter)) {
+      if (['test', 'ok', 'pending'].includes(currentFilter)) {
         rows = rows.filter(r => rowStatus(r) === currentFilter);
       } else {
         rows = rows.filter(r => r.category === currentFilter);
@@ -489,11 +508,15 @@
 
     body.innerHTML = rows.map(r => {
       const status = rowStatus(r);
-      const rowClass = status === 'critical' ? 'row-critical' : status === 'warn' ? 'row-warn' : status === 'ok' ? 'row-ok' : '';
+      const rowClass = status === 'test' ? 'row-test' : status === 'ok' ? 'row-ok' : '';
 
       const dateCell = r.lastModifiedDate
         ? `<div class="date-cell">${r.lastModifiedDate}<div class="by">${r.lastModifiedBy || ''}</div></div>`
         : '<span class="pending-cell">Not yet scanned</span>';
+
+      const descCell = r.changeDescription
+        ? `<div class="change-desc">${r.changeDescription}</div>`
+        : '<span class="pending-cell">—</span>';
 
       return `
         <tr class="${rowClass}">
@@ -504,8 +527,8 @@
           <td><span class="category-tag">${r.category}</span></td>
           <td><span class="type-tag">${r.type}</span></td>
           <td>${dateCell}</td>
-          <td>${yesNoBadge(r.modifiedThisYear)}</td>
-          <td>${last30Badge(r.modifiedLast30Days)}</td>
+          <td>${changeTypeBadge(r)}</td>
+          <td>${descCell}</td>
           <td>${testingBadge(r)}</td>
           <td>
             <a class="action-link" href="${r.editUrl}" target="_blank">Edit</a>
@@ -519,7 +542,8 @@
   function filterTable(key) {
     currentFilter = key;
     document.querySelectorAll('.filter-btn').forEach(b => {
-      b.classList.toggle('active', b.getAttribute('onclick') === `filterTable('${key}')`);
+      const fn = b.getAttribute('onclick') || '';
+      b.classList.toggle('active', fn.includes(`'${key}'`));
     });
     renderTable();
   }
@@ -534,7 +558,7 @@
 
   // ── Export CSV ─────────────────────────────────────────────────────────────
   function exportCSV() {
-    const cols = ['name','category','type','netsuiteId','lastModifiedDate','lastModifiedBy','modifiedThisYear','modifiedLast30Days','testingRequired','notes'];
+    const cols = ['name','category','type','netsuiteId','lastModifiedDate','lastModifiedBy','modifiedInAuditWindow','changeType','changeDescription','testingRequired','notes'];
     const header = cols.join(',');
     const rows = allReports.map(r =>
       cols.map(c => {
