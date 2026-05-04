@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SOX Continuous Monitoring — NetSuite Key Reports</title>
+  <title>SOX Continuous Monitoring — Key Reports</title>
   <style>
     :root {
       --bg: #f4f6f9;
@@ -200,6 +200,18 @@
       background: var(--accent-light);
       color: var(--accent);
     }
+    .system-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+    .system-tag.netsuite   { background: #eef2ff; color: #3b5bdb; border: 1px solid #c3d0f7; }
+    .system-tag.salesforce { background: #e6f4fb; color: #0176d3; border: 1px solid #a3d4ee; }
+    .system-tag.workday    { background: #fff1e6; color: #c4541b; border: 1px solid #ffd0a8; }
     .type-tag {
       display: inline-block;
       padding: 2px 8px;
@@ -280,6 +292,103 @@
     .notice .notice-icon { font-size: 18px; flex-shrink: 0; }
     .notice strong { font-weight: 700; }
 
+    .report-name a.history-trigger { color: inherit; cursor: pointer; }
+    .report-name a.history-trigger:hover { color: var(--accent); text-decoration: underline; }
+
+    /* ── History modal ── */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      z-index: 1000;
+      padding: 60px 20px;
+      overflow-y: auto;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border-radius: 10px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+      width: 100%;
+      max-width: 920px;
+      max-height: calc(100vh - 120px);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .modal-header h2 { font-size: 16px; font-weight: 700; line-height: 1.3; }
+    .modal-header .modal-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .modal-close {
+      background: none; border: none; cursor: pointer;
+      font-size: 22px; color: var(--text-muted);
+      padding: 4px 10px; border-radius: 6px;
+      line-height: 1;
+    }
+    .modal-close:hover { background: var(--bg); color: var(--text); }
+    .modal-body {
+      padding: 18px 24px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .history-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .history-table th, .history-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      text-align: left;
+      font-size: 13px;
+    }
+    .history-table th {
+      background: var(--bg);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      font-weight: 700;
+    }
+    .qrt-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--accent-light);
+      color: var(--accent);
+      white-space: nowrap;
+    }
+    .status-pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .status-pill.change      { background: var(--yellow-light); color: var(--yellow); border: 1px solid var(--yellow-border); }
+    .status-pill.no-change   { background: var(--green-light); color: var(--green); border: 1px solid var(--green-border); }
+    .status-pill.pending     { background: var(--gray-light); color: var(--gray); border: 1px solid var(--gray-border); }
+    .status-pill.not-tracked { background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; }
+    .status-pill.anomaly     { background: #ffe4e6; color: #b91c1c; border: 1px solid #fca5a5; }
+    .history-meta {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 4px 18px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .history-meta strong { color: var(--text); font-weight: 600; }
+
     /* ── Footer ── */
     footer {
       text-align: center;
@@ -304,7 +413,7 @@
 <header>
   <div class="header-left">
     <span class="header-badge">SOX</span>
-    <h1>Continuous Monitoring — NetSuite Key Reports</h1>
+    <h1>Continuous Monitoring — Key Reports</h1>
   </div>
   <div class="header-right">
     <div class="last-run" id="lastRunDisplay">
@@ -312,7 +421,7 @@
       <span id="lastRunText">Never scanned</span>
     </div>
     <span>|</span>
-    <span>4634535.app.netsuite.com</span>
+    <span id="systemsList">—</span>
   </div>
 </header>
 
@@ -349,7 +458,13 @@
 
   <!-- Toolbar -->
   <div class="toolbar">
-    <span class="toolbar-label">Filter:</span>
+    <span class="toolbar-label">System:</span>
+    <button class="filter-btn active" onclick="filterSystem('all')" data-system="all">All Systems</button>
+    <button class="filter-btn" onclick="filterSystem('NetSuite')" data-system="NetSuite">NetSuite</button>
+    <button class="filter-btn" onclick="filterSystem('Salesforce')" data-system="Salesforce">Salesforce</button>
+    <button class="filter-btn" onclick="filterSystem('Workday')" data-system="Workday">Workday</button>
+    <div class="toolbar-sep"></div>
+    <span class="toolbar-label">Category:</span>
     <button class="filter-btn active" onclick="filterTable('all')">All</button>
     <button class="filter-btn" onclick="filterTable('SEC Reports')">SEC Reports</button>
     <button class="filter-btn" onclick="filterTable('AR / AP')">AR / AP</button>
@@ -368,6 +483,7 @@
     <table id="monitoringTable">
       <thead>
         <tr>
+          <th onclick="sortTable('system')">System</th>
           <th onclick="sortTable('name')">Report / Search</th>
           <th onclick="sortTable('category')">Category</th>
           <th onclick="sortTable('type')">Type</th>
@@ -386,6 +502,19 @@
 
 </main>
 
+<div class="modal-backdrop" id="historyModal" onclick="if(event.target===this)closeHistory()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="historyTitle">
+    <div class="modal-header">
+      <div>
+        <h2 id="historyTitle">Report history</h2>
+        <div class="modal-sub" id="historySub"></div>
+      </div>
+      <button class="modal-close" aria-label="Close" onclick="closeHistory()">&times;</button>
+    </div>
+    <div class="modal-body" id="historyBody"></div>
+  </div>
+</div>
+
 <footer>
   SOX Continuous Monitoring Platform &nbsp;·&nbsp; Amplitude &nbsp;·&nbsp;
   Audit Window: <span id="monPeriod">2025-01-01 – present</span> &nbsp;·&nbsp;
@@ -397,7 +526,8 @@
   // ── Load data ──────────────────────────────────────────────────────────────
   let allReports = [];
   let currentFilter = 'all';
-  let sortKey = 'category';
+  let currentSystem = 'all';
+  let sortKey = 'system';
   let sortAsc = true;
 
   async function loadData() {
@@ -428,21 +558,33 @@
       notice.style.display = 'flex';
     }
 
+    const systemsEl = document.getElementById('systemsList');
+    if (systemsEl) {
+      const systems = meta.systems && meta.systems.length
+        ? meta.systems
+        : [...new Set(allReports.map(r => r.system).filter(Boolean))];
+      systemsEl.textContent = systems.join(' · ') || '—';
+    }
+
     if (meta.monitoringPeriodStart) {
       const end = meta.monitoringPeriodEnd || 'present';
       document.getElementById('monPeriod').textContent = meta.monitoringPeriodStart + ' – ' + end;
     }
   }
 
-  // ── Summary counts ─────────────────────────────────────────────────────────
+  // ── Summary counts (respects system filter) ───────────────────────────────
+  function inSystem(r) { return currentSystem === 'all' || r.system === currentSystem; }
+
   function updateSummary() {
-    let test = 0, ok = 0, pending = 0;
+    let test = 0, ok = 0, pending = 0, total = 0;
     for (const r of allReports) {
+      if (!inSystem(r)) continue;
+      total++;
       if (r.lastModifiedDate === null || r.lastModifiedDate === undefined) { pending++; continue; }
       if (r.testingRequired) test++;
       else ok++;
     }
-    document.getElementById('statTotal').textContent = allReports.length;
+    document.getElementById('statTotal').textContent = total;
     document.getElementById('statTest').textContent = test;
     document.getElementById('statOk').textContent = ok;
     document.getElementById('statPending').textContent = pending || '—';
@@ -450,13 +592,23 @@
 
   // ── Update filter button counts ────────────────────────────────────────────
   function updateFilterCounts() {
-    const total = allReports.length;
-    const testCount = allReports.filter(r => rowStatus(r) === 'test').length;
-    const okCount   = allReports.filter(r => rowStatus(r) === 'ok').length;
+    const inScope = allReports.filter(inSystem);
+    const total = inScope.length;
+    const testCount = inScope.filter(r => rowStatus(r) === 'test').length;
+    const okCount   = inScope.filter(r => rowStatus(r) === 'ok').length;
 
     document.querySelectorAll('.filter-btn').forEach(b => {
       const fn = b.getAttribute('onclick') || '';
-      if (fn.includes("'all'"))  b.textContent = `All (${total})`;
+      // Only relabel category/status filter buttons, not system buttons
+      if (b.hasAttribute('data-system')) {
+        const sys = b.getAttribute('data-system');
+        const n = sys === 'all'
+          ? allReports.length
+          : allReports.filter(r => r.system === sys).length;
+        b.textContent = sys === 'all' ? `All Systems (${n})` : `${sys} (${n})`;
+        return;
+      }
+      if (fn.includes("filterTable('all')")) b.textContent = `All (${total})`;
       if (fn.includes("'test'")) b.textContent = `🟡 Test Required (${testCount})`;
       if (fn.includes("'ok'"))   b.textContent = `🟢 No Testing Needed (${okCount})`;
     });
@@ -483,11 +635,23 @@
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  function reportIdLabel(r) {
+    if (r.system === 'Salesforce') return r.netsuiteId;
+    if (r.system === 'Workday')    return r.netsuiteId;
+    // NetSuite default
+    return (r.type === 'Custom Report' ? 'cr=' : 'id=') + r.netsuiteId;
+  }
+
+  function systemTag(r) {
+    const sys = r.system || 'NetSuite';
+    return `<span class="system-tag ${sys.toLowerCase()}">${sys}</span>`;
+  }
+
   function renderTable() {
     const body = document.getElementById('tableBody');
-    let rows = [...allReports];
+    let rows = allReports.filter(inSystem);
 
-    // Filter
+    // Category / status filter
     if (currentFilter !== 'all') {
       if (['test', 'ok', 'pending'].includes(currentFilter)) {
         rows = rows.filter(r => rowStatus(r) === currentFilter);
@@ -520,9 +684,10 @@
 
       return `
         <tr class="${rowClass}">
+          <td>${systemTag(r)}</td>
           <td>
-            <div class="report-name"><a href="${r.runUrl}" target="_blank">${r.name}</a></div>
-            <div class="report-id">${r.type === 'Custom Report' ? 'cr=' : 'id='}${r.netsuiteId}</div>
+            <div class="report-name"><a class="history-trigger" onclick="openHistory('${r.id}')">${r.name}</a></div>
+            <div class="report-id">${reportIdLabel(r)}</div>
           </td>
           <td><span class="category-tag">${r.category}</span></td>
           <td><span class="type-tag">${r.type}</span></td>
@@ -542,9 +707,20 @@
   function filterTable(key) {
     currentFilter = key;
     document.querySelectorAll('.filter-btn').forEach(b => {
+      if (b.hasAttribute('data-system')) return;
       const fn = b.getAttribute('onclick') || '';
-      b.classList.toggle('active', fn.includes(`'${key}'`));
+      b.classList.toggle('active', fn.includes(`filterTable('${key}')`));
     });
+    renderTable();
+  }
+
+  function filterSystem(system) {
+    currentSystem = system;
+    document.querySelectorAll('.filter-btn[data-system]').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-system') === system);
+    });
+    updateSummary();
+    updateFilterCounts();
     renderTable();
   }
 
@@ -556,9 +732,89 @@
     renderTable();
   }
 
+  // ── History modal ──────────────────────────────────────────────────────────
+  function openHistory(id) {
+    const r = allReports.find(x => x.id === id);
+    if (!r) return;
+
+    document.getElementById('historyTitle').textContent = r.name;
+    document.getElementById('historySub').innerHTML =
+      `${systemTag(r)} &nbsp;·&nbsp; ${r.category} &nbsp;·&nbsp; ${reportIdLabel(r)}`;
+
+    const body = document.getElementById('historyBody');
+
+    const meta = `
+      <div class="history-meta">
+        <span>System:</span><strong>${r.system}</strong>
+        <span>Type:</span><strong>${r.type}</strong>
+        <span>Latest known modification:</span><strong>${r.lastModifiedDate || '—'} ${r.lastModifiedBy ? '(' + r.lastModifiedBy + ')' : ''}</strong>
+        <span>Testing required:</span><strong>${r.testingRequired === true ? 'Yes' : r.testingRequired === false ? 'No' : 'Pending review'}</strong>
+        ${r.notes ? `<span>Notes:</span><strong>${r.notes}</strong>` : ''}
+      </div>`;
+
+    let historyHtml = '';
+    if (r.history && r.history.length) {
+      const rows = r.history.map(h => {
+        const status = (h.status || '').replace(/-/g,' ');
+        const pill = `<span class="status-pill ${h.status}">${status}</span>`;
+        const date = h.date || '—';
+        const by = h.by || '—';
+        const desc = h.description || h.note || '—';
+        const ct = h.changeType
+          ? `<span class="change-type-tag ${h.changeType}">${h.changeType.charAt(0).toUpperCase()+h.changeType.slice(1)}</span>`
+          : '—';
+        return `<tr>
+          <td><span class="qrt-badge">${h.quarter}</span></td>
+          <td>${pill}</td>
+          <td>${date}</td>
+          <td>${by}</td>
+          <td>${ct}</td>
+          <td>${desc}</td>
+        </tr>`;
+      }).join('');
+      historyHtml = `
+        <h3 style="font-size:13px;font-weight:700;margin:16px 0 4px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Quarterly audit-trail history</h3>
+        <table class="history-table">
+          <thead><tr><th>Quarter</th><th>Status</th><th>Date</th><th>By</th><th>Type</th><th>Change</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    } else {
+      historyHtml = `
+        <h3 style="font-size:13px;font-weight:700;margin:16px 0 4px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Latest audit-trail entry</h3>
+        <table class="history-table">
+          <thead><tr><th>Date</th><th>By</th><th>Type</th><th>Change</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>${r.lastModifiedDate || '—'}</td>
+              <td>${r.lastModifiedBy || '—'}</td>
+              <td>${r.changeType ? `<span class="change-type-tag ${r.changeType}">${r.changeType.charAt(0).toUpperCase()+r.changeType.slice(1)}</span>` : '—'}</td>
+              <td>${r.changeDescription || '—'}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:10px;">No per-quarter history captured for this report. Multi-quarter history is currently maintained for Workday key reports.</p>`;
+    }
+
+    const links = `
+      <div style="margin-top:14px;display:flex;gap:10px;">
+        ${r.runUrl ? `<a href="${r.runUrl}" target="_blank" class="action-link" style="font-size:13px;">↗ Open report</a>` : ''}
+        ${r.editUrl ? `<a href="${r.editUrl}" target="_blank" class="action-link" style="font-size:13px;">✎ Edit definition</a>` : ''}
+      </div>`;
+
+    body.innerHTML = meta + historyHtml + links;
+    document.getElementById('historyModal').classList.add('open');
+    document.addEventListener('keydown', escClose);
+  }
+
+  function closeHistory() {
+    document.getElementById('historyModal').classList.remove('open');
+    document.removeEventListener('keydown', escClose);
+  }
+  function escClose(e) { if (e.key === 'Escape') closeHistory(); }
+
   // ── Export CSV ─────────────────────────────────────────────────────────────
   function exportCSV() {
-    const cols = ['name','category','type','netsuiteId','lastModifiedDate','lastModifiedBy','modifiedInAuditWindow','changeType','changeDescription','testingRequired','notes'];
+    const cols = ['system','name','category','type','netsuiteId','lastModifiedDate','lastModifiedBy','modifiedInAuditWindow','changeType','changeDescription','testingRequired','notes'];
     const header = cols.join(',');
     const rows = allReports.map(r =>
       cols.map(c => {
